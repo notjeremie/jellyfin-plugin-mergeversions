@@ -54,7 +54,9 @@ public class MergeScopeTests
             .Callback<Guid[], ClaimsPrincipal, CancellationToken>((ids, _, _) => merged.Add(ids))
             .Returns(Task.CompletedTask);
         var library = new Mock<ILibraryManager>(MockBehavior.Strict);
-        library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(items.ToList());
+        var list = items.ToList();
+        library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(list);
+        library.Setup(l => l.GetItemById(It.IsAny<Guid>())).Returns<Guid>(id => list.FirstOrDefault(i => i.Id == id));
         library.Setup(l => l.UpdateItemAsync(It.IsAny<BaseItem>(), It.IsAny<BaseItem>(), It.IsAny<ItemUpdateType>(), It.IsAny<CancellationToken>()))
             .Callback<BaseItem, BaseItem, ItemUpdateType, CancellationToken>((item, _, _, _) => updated.Add(item))
             .Returns(Task.CompletedTask);
@@ -192,6 +194,7 @@ public class MergeScopeTests
         var survivor = Movie(bluray.Path, "1001", Today);
         var library = new Mock<ILibraryManager>(MockBehavior.Strict);
         library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(new List<BaseItem> { survivor });
+        library.Setup(l => l.GetItemById(survivor.Id)).Returns(survivor);
         var restored = new List<BaseItem>();
         library.Setup(l => l.UpdateItemAsync(It.IsAny<BaseItem>(), It.IsAny<BaseItem>(), It.IsAny<ItemUpdateType>(), It.IsAny<CancellationToken>()))
             .Callback<BaseItem, BaseItem, ItemUpdateType, CancellationToken>((item, _, _, _) => restored.Add(item))
@@ -204,6 +207,44 @@ public class MergeScopeTests
 
         Assert.Same(survivor, Assert.Single(restored));
         Assert.Equal(August, survivor.DateCreated);
+    }
+
+    [Fact]
+    public async Task DatesAreFixedBeforeMergingAndOnAFreshCopyOfTheItem()
+    {
+        // Regression: saving the listed (pre-merge) copy after the merge wrote its old version links back,
+        // hiding the new copy. Dates must be fixed first, on the item as currently stored.
+        var old = Movie("/media/Movies/Some Film (2026)/Some.Film.WEBRip.mkv", "1081003", August);
+        var listedNew = Movie("/media/Movies/Some Film (2026)/Some.Film.BLURAY.mkv", "1081003", Today);
+        var stored = Movie(listedNew.Path, "1081003", Today);
+        stored.Id = listedNew.Id;
+
+        var paths = new Mock<IServerApplicationPaths>();
+        var dir = Path.Combine(Path.GetTempPath(), "mv-tests-" + Guid.NewGuid().ToString("N"));
+        paths.SetupGet(p => p.PluginsPath).Returns(dir);
+        paths.SetupGet(p => p.PluginConfigurationsPath).Returns(dir);
+        _ = new ScopedPlugin(paths.Object, new PluginConfiguration { MergeScope = MergeScope.Folder, PreserveDateAdded = true });
+
+        var calls = new List<string>();
+        BaseItem? saved = null;
+        var library = new Mock<ILibraryManager>(MockBehavior.Strict);
+        library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(new List<BaseItem> { old, listedNew });
+        library.Setup(l => l.GetItemById(listedNew.Id)).Returns(stored);
+        library.Setup(l => l.UpdateItemAsync(It.IsAny<BaseItem>(), It.IsAny<BaseItem>(), It.IsAny<ItemUpdateType>(), It.IsAny<CancellationToken>()))
+            .Callback<BaseItem, BaseItem, ItemUpdateType, CancellationToken>((item, _, _, _) => { calls.Add("date"); saved = item; })
+            .Returns(Task.CompletedTask);
+        var versions = new Mock<IVideoVersions>(MockBehavior.Strict);
+        versions.Setup(v => v.MergeAsync(It.IsAny<Guid[]>(), It.IsAny<ClaimsPrincipal>(), It.IsAny<CancellationToken>()))
+            .Callback(() => calls.Add("merge"))
+            .Returns(Task.CompletedTask);
+        var manager = new MergeVersionsManager(library.Object, NullLogger<MergeVersionsManager>.Instance,
+            Mock.Of<IFileSystem>(), versions.Object);
+
+        await manager.MergeMoviesAsync(null);
+
+        Assert.Equal(new[] { "date", "merge" }, calls);
+        Assert.Same(stored, saved);
+        Assert.Equal(August, stored.DateCreated);
     }
 
     [Fact]

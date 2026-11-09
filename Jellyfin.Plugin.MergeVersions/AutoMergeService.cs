@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -34,20 +35,34 @@ namespace Jellyfin.Plugin.MergeVersions
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _libraryManager.ItemAdded += OnItemChanged;
-            _libraryManager.ItemUpdated += OnItemChanged;
+            _libraryManager.ItemAdded += OnItemAdded;
+            _libraryManager.ItemUpdated += OnItemUpdated;
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _libraryManager.ItemAdded -= OnItemChanged;
-            _libraryManager.ItemUpdated -= OnItemChanged;
+            _libraryManager.ItemAdded -= OnItemAdded;
+            _libraryManager.ItemUpdated -= OnItemUpdated;
             _timer.Change(Timeout.Infinite, Timeout.Infinite);
             return Task.CompletedTask;
         }
 
-        private void OnItemChanged(object sender, ItemChangeEventArgs e)
+        private void OnItemAdded(object sender, ItemChangeEventArgs e) => Schedule(e.Item);
+
+        private void OnItemUpdated(object sender, ItemChangeEventArgs e)
+        {
+            // Only updates that can change the merge key: a new item gets its TMDB id from the metadata
+            // download that follows its addition. Merges and our own date edits also raise ItemUpdated; reacting
+            // to those would schedule a pass after every pass.
+            if (e.UpdateReason.HasFlag(ItemUpdateType.MetadataDownload)
+                || e.UpdateReason.HasFlag(ItemUpdateType.MetadataImport))
+            {
+                Schedule(e.Item);
+            }
+        }
+
+        private void Schedule(BaseItem item)
         {
             var config = Plugin.Instance?.PluginConfiguration;
             if (config == null || !config.AutoMergeOnLibraryChange)
@@ -55,17 +70,7 @@ namespace Jellyfin.Plugin.MergeVersions
                 return;
             }
 
-            // Updates matter only when they can change the merge key: a new item gets its TMDB id from the
-            // metadata download that follows its addition. Our own date edits (MetadataEdit) are ignored,
-            // otherwise every pass would schedule the next one.
-            var relevantUpdate = e.UpdateReason.HasFlag(ItemUpdateType.MetadataDownload)
-                                 || e.UpdateReason.HasFlag(ItemUpdateType.MetadataImport);
-            if (e.UpdateReason != ItemUpdateType.None && !relevantUpdate)
-            {
-                return;
-            }
-
-            switch (e.Item)
+            switch (item)
             {
                 case Movie:
                     Interlocked.Exchange(ref _moviesPending, 1);

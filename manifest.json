@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "12.0.1.3",
+        "changelog": "Fix: date-added preservation could undo a merge (a stale pre-merge copy of the item was saved). Dates are now fixed before merging, on a fresh copy; automatic passes no longer react to merges and date edits. Re-run 'Merge All Movies/Episodes' once to repair affected titles.",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/notjeremie/jellyfin-plugin-mergeversions/releases/download/v12.0.1.3/merge-versions-scoped_12.0.1.3.zip",
+        "checksum": "069b8f55cb57f2a32feacfbd1c474244",
+        "timestamp": "2026-11-09T20:23:16Z"
+      },
+      {
         "version": "12.0.1.2",
         "changelog": "Raise the per-group sanity cap from 3 to 10 versions (a title can legitimately arrive 4+ times); the same-name check still prevents accidental groups.",
         "targetAbi": "12.0.0.0",

@@ -50,6 +50,8 @@ namespace Jellyfin.Plugin.MergeVersions
                 .Where(x => x.Key != null)
                 .GroupBy(x => x.Key, x => x.Item, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            // Dates first: merging rewrites the items, and saving a stale copy afterwards would undo the merge.
+            await PreserveDatesAsync(groups, cancellationToken).ConfigureAwait(false);
             var duplicateMovies = groups.Where(NeedsMerge).ToList();
 
             var current = 0;
@@ -62,7 +64,6 @@ namespace Jellyfin.Plugin.MergeVersions
                 progress?.Report(++current / (double)duplicateMovies.Count * 100);
             }
 
-            await PreserveDatesAsync(groups, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(100);
         }
@@ -95,6 +96,7 @@ namespace Jellyfin.Plugin.MergeVersions
                 .Where(x => x.Key != null)
                 .GroupBy(x => x.Key, x => x.Item, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            await PreserveDatesAsync(groups, cancellationToken).ConfigureAwait(false);
             var duplicateEpisodes = groups.Where(NeedsMerge).ToList();
 
             _logger.LogInformation(
@@ -112,7 +114,6 @@ namespace Jellyfin.Plugin.MergeVersions
                 progress?.Report(++current / (double)duplicateEpisodes.Count * 100);
             }
 
-            await PreserveDatesAsync(groups, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(100);
         }
@@ -304,11 +305,20 @@ namespace Jellyfin.Plugin.MergeVersions
                     changed = true;
                 }
 
-                foreach (var item in group.Where(item => item.DateCreated > earliest.AddMinutes(1)))
+                foreach (var listed in group.Where(item => item.DateCreated > earliest.AddMinutes(1)))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    // Save a fresh copy: the listed one may predate a merge, and saving it would write back its
+                    // old version links (seen on a real server: the new copy became invisible and unplayable).
+                    var item = _libraryManager.GetItemById(listed.Id) ?? listed;
+                    if (item.DateCreated <= earliest.AddMinutes(1))
+                    {
+                        continue;
+                    }
+
                     _logger.LogInformation("Keeping first date added {Date} for {Name}", earliest, item.Name);
                     item.DateCreated = earliest;
+                    listed.DateCreated = earliest;
                     await _libraryManager.UpdateItemAsync(item, item.GetParent(), ItemUpdateType.MetadataEdit, cancellationToken)
                         .ConfigureAwait(false);
                 }
