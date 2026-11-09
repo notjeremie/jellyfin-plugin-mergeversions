@@ -1,0 +1,21 @@
+[
+  {
+    "guid": "6d1c3a0e-5b7f-4e8a-9c2d-1f4b8e7a6c35",
+    "name": "Merge Versions (Scoped)",
+    "description": "Merges repeated movies and episodes as versions of one item, scoped per folder, library or database, with preserved date added and automatic merging.",
+    "overview": "Fork of Merge Versions with merge scopes, safety guards, date-added preservation and debounced auto-merge.",
+    "owner": "notjeremie",
+    "category": "General",
+    "imageUrl": "",
+    "versions": [
+      {
+        "version": "12.0.1.1",
+        "changelog": "Add MergeScope (Folder/Library/Database), merge guards, PreserveDateAdded and automatic merging.",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/notjeremie/jellyfin-plugin-mergeversions/releases/download/v12.0.1.1/merge-versions-scoped_12.0.1.1.zip",
+        "checksum": "616f225de9270ad9e497e5cd041ded20",
+        "timestamp": "2026-11-09T19:14:54Z"
+      }
+    ]
+  }
+]
