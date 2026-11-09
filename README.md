@@ -1,24 +1,56 @@
-<h1 align="center">Jellyfin Merge Versions Plugin</h1>
-<h3 align="center">Part of the <a href="https://jellyfin.org">Jellyfin Project</a></h3>
+<h1 align="center">Jellyfin Merge Versions (Scoped)</h1>
+<h3 align="center">A fork of <a href="https://github.com/danieladov/jellyfin-plugin-mergeversions">danieladov/jellyfin-plugin-mergeversions</a> for <a href="https://jellyfin.org">Jellyfin</a> 12</h3>
 
-<p align="center">
-Jellyfin Merge Versions plugin is a plugin that automatically groups every repeated movie and episode.
+This fork keeps the original idea (automatically group repeated movies and episodes as versions of a single item) and makes it safer to run on libraries where the same title legitimately exists more than once.
 
-</p>
+It has its own plugin identity ("Merge Versions (Scoped)", assembly `Jellyfin.Plugin.MergeVersions.Scoped`), so it can be installed next to the upstream plugin, but you should only enable one of them at a time.
 
-## Install Process
+## What this fork adds
+
+### Merge scope
+
+The `MergeScope` setting decides what counts as "the same item":
+
+| Scope | Behaviour |
+|---|---|
+| **Folder** (default) | Items are merged only when they live in the same folder on disk. Movies must also share the same TMDB id; episodes must share the same season and episode numbers. |
+| **Library** | Items are merged within a single library. |
+| **Database** | Upstream behaviour: items are merged across the whole server, matched by provider id. |
+
+Folder is the safe default when you keep a mirror library of the same files (for example the same films with another language's metadata): upstream would merge those into one item, the Folder scope never does.
+
+### Guards
+
+- An item without a TMDB id is never merged.
+- A group is merged only if all its items share the same name, and only if it has at most 3 items.
+
+Why: Jellyfin sometimes misparses file names. A real case was a whole season named like "Show S01 - 01", "Show S01 - 02", ... that was read as S01E71 for every file; the plugin would have merged the entire season into one episode.
+
+### Date added is preserved
+
+With `PreserveDateAdded` (on by default), every version gets the date added of the first version. The date is remembered in a small JSON file next to the plugin configurations, so it survives even after the old copy is deleted. A new or better copy of a film therefore no longer shows up in "Recently added".
+
+### Automatic merging
+
+`AutoMergeService` runs a debounced pass a few minutes after items are added or identified (`AutoMergeOnLibraryChange`, `AutoMergeDelaySeconds`, default 120 s), instead of waiting for the scheduled task.
+
+## Credits and license
+
+Based on the work of Daniel Arez Diaz ([danieladov](https://github.com/danieladov)) and contributors. MIT licensed; the original copyright notice is kept in `LICENSE`.
+
+## Install
 
 
 ## From Repository
-1. In jellyfin, go to dashboard -> plugins -> Repositories -> add and paste this link https://raw.githubusercontent.com/danieladov/JellyfinPluginManifest/master/manifest.json
-2. Go to Catalog and search for the plugin you want to install
+1. In Jellyfin, go to Dashboard -> Plugins -> Repositories -> add and paste this link: https://raw.githubusercontent.com/notjeremie/jellyfin-plugin-mergeversions/scoped-merge/manifest.json
+2. Go to Catalog and search for "Merge Versions (Scoped)"
 3. Click on it and install
 4. Restart Jellyfin
 
 
 ## From .zip file
-1. Download the .zip file from release page
-2. Extract it and place the .dll file in a folder called ```plugins/Merge Versions``` under  the program data directory or inside the portable install directory
+1. Download the .zip file from the [release page](https://github.com/notjeremie/jellyfin-plugin-mergeversions/releases)
+2. Extract it and place the .dll file in a folder called ```plugins/Merge Versions Scoped``` under  the program data directory or inside the portable install directory
 3. Restart Jellyfin
 
 ## User Guide

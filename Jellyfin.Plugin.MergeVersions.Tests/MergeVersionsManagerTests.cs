@@ -19,6 +19,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.MergeVersions.Tests;
 
+[Collection(PluginInstanceCollection.Name)]
 public class MergeVersionsManagerTests
 {
     [Theory]
@@ -230,7 +231,9 @@ public class MergeVersionsManagerTests
     {
         public TestPlugin(IServerApplicationPaths paths) : base(paths, Mock.Of<IXmlSerializer>())
         {
-            Configuration = new PluginConfiguration();
+            // Upstream tests describe the original whole-database behaviour; the fork's own cases are in
+            // MergeScopeTests.
+            Configuration = new PluginConfiguration { MergeScope = MergeScope.Database, PreserveDateAdded = false };
         }
     }
 }
