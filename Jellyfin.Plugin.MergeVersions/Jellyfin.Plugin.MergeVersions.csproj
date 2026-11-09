@@ -5,8 +5,8 @@
     <IsPackable>true</IsPackable>
     <AssemblyName>Jellyfin.Plugin.MergeVersions.Scoped</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.MergeVersions</RootNamespace>
-    <AssemblyVersion>12.0.1.1</AssemblyVersion>
-    <FileVersion>12.0.1.1</FileVersion>
+    <AssemblyVersion>12.0.1.2</AssemblyVersion>
+    <FileVersion>12.0.1.2</FileVersion>
     <Authors />
     <Company />  		        
   </PropertyGroup>

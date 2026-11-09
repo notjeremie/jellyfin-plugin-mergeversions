@@ -171,7 +171,9 @@ namespace Jellyfin.Plugin.MergeVersions
         private static PluginConfiguration Config => Plugin.Instance.PluginConfiguration;
 
         /// <summary>More copies than this in one group is an anomaly, not versions of one title.</summary>
-        internal const int MaxVersionsPerGroup = 3;
+        // The same-name check is what catches accidental groups (a misnumbered season); this cap is only a
+        // last-resort sanity limit. 3 was too low in practice: one film arrived 4 times in a single day.
+        internal const int MaxVersionsPerGroup = 10;
 
         private bool NeedsMerge(IGrouping<string, BaseItem> group)
             => group.Count() > 1 && IsPlausible(group) && group.Any(item => item is Video video

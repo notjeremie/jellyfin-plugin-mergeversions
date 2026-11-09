@@ -131,6 +131,19 @@ public class MergeScopeTests
     }
 
     [Fact]
+    public async Task FourCopiesOfTheSameFilmAreMerged()
+    {
+        var copies = Enumerable.Range(1, 4)
+            .Select(n => (BaseItem)Movie($"/media/Movies/Some Film (2026)/Some.Film.2026.release{n}.mkv", "1616419"))
+            .ToList();
+        var (manager, merged, _) = Create(MergeScope.Folder, copies);
+
+        await manager.MergeMoviesAsync(null);
+
+        Assert.Equal(4, Assert.Single(merged).Length);
+    }
+
+    [Fact]
     public async Task AMisnumberedSeasonIsNeverMergedIntoOneEpisode()
     {
         // Real case: Jellyfin read "Show S01 - 01", "Show S01 - 02"... as S01E71 for every file of a season.
